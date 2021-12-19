@@ -1,0 +1,12 @@
+# "Hello World," the first program you will write in Annoyingly Uncodeable Language (AUI)
+
+# Print the content in the file "out.out"
+> cvvcvvvv cvvvcvcv cvvvcvcc ccvcvvvc cvvcvvvv cvvvcvcv cvvvcvcc
+# Start recording
+!m
+# Hello World! encoded into ASCII and then converted into binary with c=0 and v=1
+cvccvccc cvvccvcv cvvcvvcc cvvcvvcc cvvcvvvv ccvccccc cvcvcvvv cvvcvvvv cvvvccvc cvvcvvcc cvvccvcc ccvccccv
+# End recording
+!m
+# Print the memory (in the file declared above)
+!p
