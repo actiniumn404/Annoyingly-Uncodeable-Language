@@ -266,7 +266,3 @@ class variable:
 
 def do_nothing(*args):
     return ",".join(args)
-
-
-if __name__ == "__main__":
-    Compile(open("/Users/andrewchen/Desktop/PycharmProjects/Algorithms/Compiler/fib.aul", "r").read())
