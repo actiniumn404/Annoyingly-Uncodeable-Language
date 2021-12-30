@@ -1,3 +1,7 @@
+# The official Annoyingly Uncodeable Language (AUL) Compiler
+# By Andrew Chen (actiniumn404 on GitHub)
+# Licensed under the ___ License
+
 import string
 from errors import *
 
@@ -9,7 +13,8 @@ class Compile:
         self.curChar = ""
         self.location = None
         self.clipboard = None
-        self.valid = list(string.whitespace) + ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"] + list(string.ascii_lowercase) + ["\0", "", "\n", "!", "#", "*", "+", "/", "-", "$"]
+        self.valid = list(string.whitespace) + ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"] + list(
+            string.ascii_lowercase) + ["\0", "", "\n", "!", "#", "*", "+", "/", "-", "$"]
         self.memory = ""
         self.memory_state = "end"
         self.out = print
@@ -51,7 +56,6 @@ class Compile:
                     self.memory = ""
                     self.next_char(source)
 
-
             # Variables
             if self.curChar == "$":
                 self.next_char(source)
@@ -74,7 +78,7 @@ class Compile:
                         self.next_char(source)
                         # take care of the parameters
                         parameters = ""
-                        while self.curChar not in [" ", "\n", "\0"]:
+                        while self.curChar not in ["\n", "\0"]:
                             parameters += self.curChar
                             self.next_char(source)
                         function_content = ""
@@ -82,6 +86,7 @@ class Compile:
                             function_content += self.curChar
                             self.next_char(source)
                         function_content = function_content[:-8]
+                        self.variables[name] = variable(name, "function", function_content, parameters)
                 else:
                     if self.memory_state == "start":
                         self.memory += str(self.variables[name].content)
@@ -148,8 +153,7 @@ class Compile:
                         result = operand1 / operand2
                     if self.memory_state == "start":
                         self.curPos -= 2
-                        self.curChar = self.source[self.curPos]
-                        #print(operand1, operand2, operation, result, self.curChar, self.curPos)
+                        self.curChar = source[self.curPos]
                         self.memory += str(result)
                 # Memory (start/end)
                 elif self.curChar == "m":
@@ -159,10 +163,38 @@ class Compile:
                         # self.memory = ""
                     else:
                         self.memory_state = "end"
-                    #print(self.memory_state, self.curChar)
                 # User created functions
                 else:
-                    pass
+                    func_name = ""
+                    while self.curChar not in [" ", "\n", "\0"]:
+                        func_name += self.curChar
+                        self.next_char(source)
+                    function_object = self.variables[func_name]
+                    parameters = ""
+                    while self.curChar not in ["\n", "\0"]:
+                        parameters += self.curChar
+                        self.next_char(source)
+                    parameters = parameters.strip().split(" ")
+                    # Some syntax error checks
+                    if len(parameters) != len(function_object.parameters):
+                        raise TypeError(f"Expected {len(function_object.parameters)} parameters, got {len(parameters)}")
+                    if not all([x[0] == "$" for x in parameters]):
+                        raise SyntaxError("Function parameters must be variables")
+                    for i in range(len(parameters)):
+                        self.variables[function_object.parameters[i].name] = variable(function_object.parameters[i].name,
+                                                 function_object.parameters[i].data_type,
+                                                 self.variables[parameters[i][1:]].content)
+                    myPos = self.curPos
+                    self.memory = ""
+                    self.curChar = ""
+                    self.memory_state = "end"
+                    self.curPos = 0
+                    # == Run Function Code ==
+                    self.parse(function_object.content)
+                    # == End Run ==
+                    self.curPos = myPos
+                    self.curChar = source[self.curPos - 1]
+
                 self.next_char(source)
 
             # For loop
@@ -211,7 +243,7 @@ class Compile:
                     self.curPos = 0
                     self.parse(loop_content)
                 self.curPos = myPos
-                self.curChar = self.source[self.curPos - 1]
+                self.curChar = source[self.curPos - 1]
 
             # plain text
             elif self.curChar in ["c", "v"]:
@@ -243,17 +275,15 @@ class Compile:
                 self.next_char(source)
             else:
                 raise UnexpectedCharacter(source, self.curPos)
-
-
+            #print(self.curChar, self.curPos)
 
 
 class variable:
-    def __init__(self, name, data_type, content, parameters=None, function_content=None):
+    def __init__(self, name: str, data_type: str, content: str, parameters=None):
         self.name = name
         self.data_type = data_type
         self.parameters = parameters
         self.content = content
-        self.function_content = function_content
         # get the data type parse function
         self.data_type_function = {"string": str, "integer": int, "float": float, "function": do_nothing}[
             self.data_type]
@@ -261,7 +291,11 @@ class variable:
             self.content = self.data_type_function(str(self.content))
         except BaseException:
             raise SegmentationFault(f"The value of variable \"{self.name}\" is not a valid \"{self.data_type}\" object")
-
+        self.parameters = []
+        if parameters:
+            for parameter in parameters.split(", "):
+                parameter = parameter.split(" ")
+                self.parameters.append(variable(parameter[0][1:], parameter[1], "0"))
 
 
 def do_nothing(*args):
