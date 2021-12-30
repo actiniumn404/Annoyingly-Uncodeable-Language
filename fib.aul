@@ -1,54 +1,60 @@
 # Fibonacci Program in AUL
-# You won't believe how many brain cells I've killed debugging this
 
-# Get number of terms
+# Declare the function
+$fib function $number_terms integer
+    # set up the variables
+    mc
+    !m
+    vvcccc # Binary of "48" which is the ASCII charcode for "0"
+    !m
+    $n1 integer
+
+    mc
+    !m
+    vvcccv # Binary of "98" which is the ASCII charcode for "1"
+    !m
+    $n2 integer
+
+    # Program
+
+    loop c-$number_terms as $count
+        # Print "n1"
+        mc
+        !m
+        $n1
+        !m
+        !p
+
+        # update values
+        mc
+        !m
+        !math $n1+$n2
+        !m
+        $nth integer
+
+        mc
+        !m
+        $n2
+        !m
+        $n1 integer
+
+        mc
+        !m
+        $nth
+        !m
+        $n2 integer
+
+
+    endloop
+endfunc
+
+
+# Get user input
 !m
 in
 !m
-$number_terms integer
+$num_terms integer
 
+# Call the function
 
-# set up the variables
-mc
-!m
-vvcccc # Binary of "48" which is the ASCII charcode for "0"
-!m
-$n1 integer
-
-mc
-!m
-vvcccv # Binary of "98" which is the ASCII charcode for "1"
-!m
-$n2 integer
-
-# Program
-
-loop c-$number_terms as $count
-# Print "n1"
-mc
-!m
-$n1
-!m
-!p
-
-# update values
-mc
-!m
-!math $n1+$n2
-!m
-$nth integer
-
-mc
-!m
-$n2
-!m
-$n1 integer
-
-mc
-!m
-$nth
-!m
-$n2 integer
-
-
-endloop
+!fib $num_terms
