@@ -1,0 +1,51 @@
+# Take care of the integer needed to be guessed
+mc
+!m
+    !math vcccv+vcccc
+!m
+$random_num integer
+
+# Guessed or not guessed?
+mc
+!m
+    !b No
+!m
+$guessed bool
+
+wloop $guessed = No
+    !m
+        in
+    !m
+    $guess integer
+
+    ?if $guess < $random_num
+        mc
+        !m
+            vcvvccv vvcvvvv vvvcvcv vvvccvc vccccc vvccvvv vvvcvcv vvccvcv vvvccvv vvvccvv vccccc vvcvccv vvvccvv vccccc vvvcvcc vvcvvvv vvcvvvv vccccc vvcvvcc vvcvvvv vvvcvvv # Your guess is too low
+        !m
+        !p
+    end?if
+    ?else
+        ?if $guess > $random_num
+            mc
+            !m
+                vcvvccv vvcvvvv vvvcvcv vvvccvc vccccc vvccvvv vvvcvcv vvccvcv vvvccvv vvvccvv vccccc vvcvccv vvvccvv vccccc vvvcvcc vvcvvvv vvcvvvv vccccc vvcvccc vvcvccv vvccvvv vvcvccc # Your guess is too high
+            !m
+            !p
+        end?if
+        ?else
+            mc
+            !m
+                vccccvv vvcvvvv vvvccvc vvvccvc vvccvcv vvcccvv vvvcvcc vccccv # Correct
+            !m
+            !p
+
+            # Set guessed to True (Yes)
+            mc
+            !m
+            !b Yes
+            !m
+            $guessed bool
+        end?else
+    end?else
+endwhloop
