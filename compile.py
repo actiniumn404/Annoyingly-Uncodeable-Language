@@ -14,12 +14,12 @@ class Compile:
         self.location = None
         self.clipboard = None
         self.valid = list(string.whitespace) + ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"] + list(
-            string.ascii_lowercase) + ["\0", "", "\n", "!", "#", "*", "+", "/", "-", "$", "?"]
+            string.ascii_lowercase) + ["\0", "", "\n", "!", "#", "*", "+", "/", "-", "$", "?", "<", ">", "=", "|"]
         self.memory = ""
         self.memory_state = "end"
         self.out = print
         self.variables = {}
-        self.valid_data_types = ["integer", "string", "float", "function"]
+        self.valid_data_types = ["integer", "string", "float", "function", "bool"]
         self.parse(self.source)
 
     def next_char(self, source):
@@ -37,6 +37,7 @@ class Compile:
         return source[self.curPos]
 
     def booleen(self, test_string: str):
+        test_string = test_string.strip()
         valid = [
             "+",   # and
             "|",   # or
@@ -57,18 +58,15 @@ class Compile:
             part = parts[i]
             if part[0] == "$":
                 parts[i] = self.variables[part[1:]].content
+            elif part == "Yes":
+                parts[i] = True
+            elif part == "No":
+                parts[i] = False
         while pointer < len(parts):
             part = parts[pointer]
             # assume is a variable if not one of the above
             if part not in valid:
                 op1 = part
-                if op1 == "Yes":
-                    op1 = True
-                elif op1 == "No":
-                    op1 = False
-                else:
-                    op1 = False
-                #raise SyntaxError("Invalid operator \"" + str(part) + "\"")
                 pointer += 1
                 continue
             # now onto the ops
@@ -142,13 +140,13 @@ class Compile:
             if self.curChar == "$":
                 self.next_char(source)
                 name = ""
-                while self.curChar not in [" ", "\n", "\0"]:
+                while self.curChar not in [" ", "\n", "\0", "#"]:
                     name += self.curChar
                     self.next_char(source)
                 self.next_char(source)
                 if (source[self.curPos - 1:min(self.curPos + 2, len(source) - 1)]).isalpha():
                     data_type = ""
-                    while self.curChar not in [" ", "\n", "\0"]:
+                    while self.curChar not in [" ", "\n", "\0", "#"]:
                         data_type += self.curChar
                         self.next_char(source)
                     if data_type not in self.valid_data_types:
@@ -160,7 +158,7 @@ class Compile:
                         self.next_char(source)
                         # take care of the parameters
                         parameters = ""
-                        while self.curChar not in ["\n", "\0"]:
+                        while self.curChar not in ["\n", "\0", "#"]:
                             parameters += self.curChar
                             self.next_char(source)
                         function_content = ""
@@ -213,7 +211,7 @@ class Compile:
                             operand2 += {"c": "0", "v": "1"}.get(self.curChar)
                             self.next_char(source)
                     else:
-                        while self.curChar not in ["\0", "\n", " ", "!"]:
+                        while self.curChar not in ["\0", "\n", " ", "!", "#"]:
                             operand2 += self.curChar
                             self.next_char(source)
                         self.next_char(source)
@@ -250,22 +248,22 @@ class Compile:
                     test_string = ""
                     self.next_char(source)
                     self.next_char(source)
-                    while self.curChar not in ["!", "\0", "\n"]:
+                    while self.curChar not in ["!", "\0", "\n", "#"]:
                         test_string += self.curChar
                         self.next_char(source)
                     if self.memory_state == "start":
                         self.memory += str(self.booleen(test_string))
-                    self.curPos -= 2
+                    self.curPos -= 1
                     self.curChar = source[self.curPos]
                 # User created functions
                 else:
                     func_name = ""
-                    while self.curChar not in [" ", "\n", "\0"]:
+                    while self.curChar not in [" ", "\n", "\0", "#"]:
                         func_name += self.curChar
                         self.next_char(source)
                     function_object = self.variables[func_name]
                     parameters = ""
-                    while self.curChar not in ["\n", "\0"]:
+                    while self.curChar not in ["\n", "\0", "#"]:
                         parameters += self.curChar
                         self.next_char(source)
                     parameters = parameters.strip().split(" ")
@@ -296,11 +294,11 @@ class Compile:
                 self.next_char(source)
                 loop_from = ""
                 loop_to = ""
-                while self.curChar not in ["-", " ", "\n", "\0"]:
+                while self.curChar not in ["-", " ", "\n", "\0", "#"]:
                     loop_from += self.curChar
                     self.next_char(source)
                 self.next_char(source)
-                while self.curChar not in ["-", " ", "\n", "\0"]:
+                while self.curChar not in ["-", " ", "\n", "\0", "#"]:
                     loop_to += self.curChar
                     self.next_char(source)
 
@@ -315,7 +313,7 @@ class Compile:
                 for _ in range(5):
                     self.next_char(source)
                 loop_variable = ""
-                while self.curChar not in [" ", "\n", "\0"]:
+                while self.curChar not in [" ", "\n", "\0", "#"]:
                     loop_variable += self.curChar
                     self.next_char(source)
                 loop_end = 1
@@ -339,6 +337,37 @@ class Compile:
                 self.curPos = myPos
                 self.curChar = source[self.curPos - 1]
 
+            # while loop
+            elif source[self.curPos-1:self.curPos+4] == "wloop":
+                # Move the pointer past the keyword and the whitespace
+                for _ in range(6):
+                    self.next_char(source)
+                test_bool = ""
+                while self.curChar != "\n":
+                    test_bool += self.curChar
+                    self.next_char(source)
+                self.next_char(source)
+                # Take the content of the loop
+                loop_end = 1
+                loop_content = ""
+                while loop_end:
+                    if source[self.curPos - 1:self.curPos+8] == "endwhloop":
+                        loop_end = loop_end - 1
+                    elif source[self.curPos - 1:self.curPos + 4] == "wloop":
+                        loop_end += 1
+                    loop_content += self.curChar
+                    self.next_char(source)
+                loop_content = loop_content[:-1].strip(" \n")
+                myPos = self.curPos
+                while self.booleen(test_bool):
+                    self.memory = ""
+                    self.curChar = ""
+                    self.memory_state = "end"
+                    self.curPos = 0
+                    self.parse(loop_content)
+                self.curPos = myPos
+                self.curChar = source[self.curPos - 1]
+
             # plain text
             elif self.curChar in ["c", "v"]:
                 binary = ""
@@ -347,26 +376,8 @@ class Compile:
                     self.next_char(source)
                 if self.memory_state == "start":
                     self.memory += chr(int(binary, 2))
-
-            elif self.curChar == ">":
-                self.next_char(source)
-                self.next_char(source)
-                file_name = ""
-                binary = ""
-                while self.curChar in [" ", "c", "v", "\n"]:
-                    if self.curChar == " " or self.curChar == "\n":
-                        try:
-                            file_name += chr(int(binary, 2))
-                            binary = ""
-                        except ValueError:
-                            pass
-                    else:
-                        binary += {"c": "0", "v": "1"}.get(self.curChar, "")
-                    self.next_char(source)
-                self.out = open(file_name, "w").write
-
             # If/Else
-            if self.source[self.curPos-1:self.curPos+2] == "?if":
+            elif source[self.curPos-1:self.curPos+2] == "?if":
                 self.next_char(source)
                 self.next_char(source)
                 test_bool = ""
@@ -377,7 +388,7 @@ class Compile:
                 if_content = ""
                 self.next_char(source)
                 while num_ifs and self.curChar != "\0":
-                    if self.source[self.curPos-1:self.curPos+2] == "?if":
+                    if source[self.curPos-1:self.curPos+2] == "?if":
                         num_ifs += 1
                     elif source[self.curPos-1:self.curPos+5] == "end?if":
                         num_ifs -= 1
@@ -401,7 +412,7 @@ class Compile:
                 # Take care of else loop
                 while self.curChar in [" ", "\n"]:
                     self.next_char(source)
-                if self.source[self.curPos-1:self.curPos+4] == "?else":
+                if source[self.curPos-1:self.curPos+4] == "?else":
                     # Move the pointer past the keyword
                     for _ in range(5):
                         self.next_char(source)
@@ -429,11 +440,28 @@ class Compile:
                         # == End Run ==
                         self.curPos = myPos
                         self.curChar = source[self.curPos - 1]
+
+            elif self.curChar == ">":
+                self.next_char(source)
+                self.next_char(source)
+                file_name = ""
+                binary = ""
+                while self.curChar in [" ", "c", "v", "\n", "#"]:
+                    if self.curChar == " " or self.curChar == "\n":
+                        try:
+                            file_name += chr(int(binary, 2))
+                            binary = ""
+                        except ValueError:
+                            pass
+                    else:
+                        binary += {"c": "0", "v": "1"}.get(self.curChar, "")
+                    self.next_char(source)
+                self.out = open(file_name, "w").write
+
             elif self.curChar in self.valid:
                 self.next_char(source)
             else:
                 raise UnexpectedCharacter(source, self.curPos)
-            #print(self.curChar, self.curPos)
 
 
 class variable:
@@ -443,7 +471,7 @@ class variable:
         self.parameters = parameters
         self.content = content
         # get the data type parse function
-        self.data_type_function = {"string": str, "integer": int, "float": float, "function": self.do_nothing}[
+        self.data_type_function = {"string": str, "integer": int, "float": float, "function": self.do_nothing, "bool":lambda b:True if b == "True" else False}[
             self.data_type]
         try:
             self.content = self.data_type_function(str(self.content))
