@@ -14,7 +14,7 @@ class Compile:
         self.location = None
         self.clipboard = None
         self.valid = list(string.whitespace) + ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"] + list(
-            string.ascii_lowercase) + ["\0", "", "\n", "!", "#", "*", "+", "/", "-", "$"]
+            string.ascii_lowercase) + ["\0", "", "\n", "!", "#", "*", "+", "/", "-", "$", "?"]
         self.memory = ""
         self.memory_state = "end"
         self.out = print
@@ -35,6 +35,88 @@ class Compile:
             # End of Program
             return "\0"
         return source[self.curPos]
+
+    def booleen(self, test_string: str):
+        valid = [
+            "+",   # and
+            "|",   # or
+            "x",   # not
+            "in",  # in
+            "xin", # x-in = not in
+            "=",   # equals
+            "x=",  # x= = not equal
+            ">",   # greater than
+            "<",   # less than
+            "<=",  # less than equal to
+            ">=",  # greater than equal to
+        ]
+        parts = test_string.split(" ")
+        pointer = 0
+        op1 = ""
+        for i in range(len(parts)):
+            part = parts[i]
+            if part[0] == "$":
+                parts[i] = self.variables[part[1:]].content
+        while pointer < len(parts):
+            part = parts[pointer]
+            # assume is a variable if not one of the above
+            if part not in valid:
+                op1 = part
+                if op1 == "Yes":
+                    op1 = True
+                elif op1 == "No":
+                    op1 = False
+                else:
+                    op1 = False
+                #raise SyntaxError("Invalid operator \"" + str(part) + "\"")
+                pointer += 1
+                continue
+            # now onto the ops
+            if part == "+": # and
+                pointer += 1
+                next_p = parts[pointer]
+                op1 =  bool(next_p and op1)
+            elif part == "|":  # or
+                pointer += 1
+                next_p = parts[pointer]
+                op1 = bool(next_p or op1)
+            elif part == "x": # not
+                op1 = not next_p
+            elif part == "in": # if {variable} in {string}
+                pointer += 1
+                next_p = parts[pointer]
+                op1 = op1 in next_p
+            elif part == "xin": # not in: if {variable} xin {string}
+                pointer += 1
+                next_p = parts[pointer]
+                op1 = op1 not in next_p
+            elif part == "=": # equal to
+                pointer += 1
+                next_p = parts[pointer]
+                op1 = bool(op1 == next_p)
+            elif part == "x=": # not equal to
+                pointer += 1
+                next_p = parts[pointer]
+                op1 = bool(op1 != next_p)
+            elif part == ">":
+                pointer += 1
+                next_p = parts[pointer]
+                op1 = bool(op1 > next_p)
+            elif part == "<":
+                pointer += 1
+                next_p = parts[pointer]
+                op1 = bool(op1 < next_p)
+            elif part == ">=":
+                pointer += 1
+                next_p = parts[pointer]
+                op1 = bool(op1 >= next_p)
+            elif part == "<=":
+                pointer += 1
+                next_p = parts[pointer]
+                op1 = bool(op1 <= next_p)
+
+            pointer += 1
+        return op1
 
     def parse(self, source):
         self.memory_state = "end"
@@ -152,7 +234,7 @@ class Compile:
                     if operation == "/":
                         result = operand1 / operand2
                     if self.memory_state == "start":
-                        self.curPos -= 2
+                        self.curPos -= 1
                         self.curChar = source[self.curPos]
                         self.memory += str(result)
                 # Memory (start/end)
@@ -163,6 +245,18 @@ class Compile:
                         # self.memory = ""
                     else:
                         self.memory_state = "end"
+                # Booleens
+                elif self.curChar == "b":
+                    test_string = ""
+                    self.next_char(source)
+                    self.next_char(source)
+                    while self.curChar not in ["!", "\0", "\n"]:
+                        test_string += self.curChar
+                        self.next_char(source)
+                    if self.memory_state == "start":
+                        self.memory += str(self.booleen(test_string))
+                    self.curPos -= 2
+                    self.curChar = source[self.curPos]
                 # User created functions
                 else:
                     func_name = ""
@@ -271,6 +365,70 @@ class Compile:
                     self.next_char(source)
                 self.out = open(file_name, "w").write
 
+            # If/Else
+            if self.source[self.curPos-1:self.curPos+2] == "?if":
+                self.next_char(source)
+                self.next_char(source)
+                test_bool = ""
+                while self.curChar not in ["\n", "\0"]:
+                    test_bool += self.curChar
+                    self.next_char(source)
+                num_ifs = 1
+                if_content = ""
+                self.next_char(source)
+                while num_ifs and self.curChar != "\0":
+                    if self.source[self.curPos-1:self.curPos+2] == "?if":
+                        num_ifs += 1
+                    elif source[self.curPos-1:self.curPos+5] == "end?if":
+                        num_ifs -= 1
+                    if_content += self.curChar
+                    self.next_char(source)
+                if_content = if_content[:-1].strip("\n ")
+                test_bool = self.booleen(test_bool)
+                if test_bool:
+                    myPos = self.curPos
+                    self.memory = ""
+                    self.curChar = ""
+                    self.memory_state = "end"
+                    self.curPos = 0
+                    # == Start Run ==
+                    self.parse(if_content)
+                    # == End Run ==
+                    self.curPos = myPos
+                    self.curChar = source[self.curPos - 1]
+                for _ in range(5):
+                    self.next_char(source)
+                # Take care of else loop
+                while self.curChar in [" ", "\n"]:
+                    self.next_char(source)
+                if self.source[self.curPos-1:self.curPos+4] == "?else":
+                    # Move the pointer past the keyword
+                    for _ in range(5):
+                        self.next_char(source)
+                    num_else = 1
+                    else_content = ""
+                    self.next_char(source)
+                    while num_else and self.curChar != "\0":
+                        if source[self.curPos - 1:self.curPos + 4] == "?else":
+                            num_else += 1
+                        elif source[self.curPos - 1:self.curPos + 7] == "end?else":
+                            num_else -= 1
+                        else_content += self.curChar
+                        self.next_char(source)
+                    else_content = else_content[:-1].strip(" \n")
+                    for _ in range(8):
+                        self.next_char(source)
+                    if not test_bool:
+                        myPos = self.curPos
+                        self.memory = ""
+                        self.curChar = ""
+                        self.memory_state = "end"
+                        self.curPos = 0
+                        # == Start Run ==
+                        self.parse(else_content)
+                        # == End Run ==
+                        self.curPos = myPos
+                        self.curChar = source[self.curPos - 1]
             elif self.curChar in self.valid:
                 self.next_char(source)
             else:
@@ -285,7 +443,7 @@ class variable:
         self.parameters = parameters
         self.content = content
         # get the data type parse function
-        self.data_type_function = {"string": str, "integer": int, "float": float, "function": do_nothing}[
+        self.data_type_function = {"string": str, "integer": int, "float": float, "function": self.do_nothing}[
             self.data_type]
         try:
             self.content = self.data_type_function(str(self.content))
@@ -297,6 +455,5 @@ class variable:
                 parameter = parameter.split(" ")
                 self.parameters.append(variable(parameter[0][1:], parameter[1], "0"))
 
-
-def do_nothing(*args):
-    return ",".join(args)
+    def do_nothing(self, *args):
+        return ",".join(args)
