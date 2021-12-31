@@ -4,6 +4,7 @@
 
 import string
 from errors import *
+import pathlib
 
 
 class Compile:
@@ -18,8 +19,13 @@ class Compile:
         self.memory = ""
         self.memory_state = "end"
         self.out = print
-        self.variables = {}
+        self.variables = {"__name__": Variable("__name__", "string", "__main__")}
         self.valid_data_types = ["integer", "string", "float", "function", "bool"]
+        self.mailbox = ""
+
+        # set up path for importing
+        self.file_path = str(pathlib.Path(__file__).parent.resolve())
+
         self.parse(self.source)
 
     def next_char(self, source):
@@ -39,29 +45,29 @@ class Compile:
     def booleen(self, test_string: str):
         test_string = test_string.strip()
         valid = [
-            "+",   # and
-            "|",   # or
-            "x",   # not
+            "+",  # and
+            "|",  # or
+            "x",  # not
             "in",  # in
-            "xin", # x-in = not in
-            "=",   # equals
+            "xin",  # x-in = not in
+            "=",  # equals
             "x=",  # x= = not equal
-            ">",   # greater than
-            "<",   # less than
+            ">",  # greater than
+            "<",  # less than
             "<=",  # less than equal to
             ">=",  # greater than equal to
         ]
         parts = test_string.split(" ")
         pointer = 0
         op1 = ""
-        for i in range(len(parts)):
-            part = parts[i]
+        for index in range(len(parts)):
+            part = parts[index]
             if part[0] == "$":
-                parts[i] = self.variables[part[1:]].content
+                parts[index] = self.variables[part[1:]].content
             elif part == "Yes":
-                parts[i] = True
+                parts[index] = True
             elif part == "No":
-                parts[i] = False
+                parts[index] = False
         while pointer < len(parts):
             part = parts[pointer]
             # assume is a variable if not one of the above
@@ -70,29 +76,29 @@ class Compile:
                 pointer += 1
                 continue
             # now onto the ops
-            if part == "+": # and
+            if part == "+":  # and
                 pointer += 1
                 next_p = parts[pointer]
-                op1 =  bool(next_p and op1)
+                op1 = bool(next_p and op1)
             elif part == "|":  # or
                 pointer += 1
                 next_p = parts[pointer]
                 op1 = bool(next_p or op1)
-            elif part == "x": # not
-                op1 = not next_p
-            elif part == "in": # if {variable} in {string}
+            elif part == "x":  # not
+                op1 = not op1
+            elif part == "in":  # if {variable} in {string}
                 pointer += 1
                 next_p = parts[pointer]
                 op1 = op1 in next_p
-            elif part == "xin": # not in: if {variable} xin {string}
+            elif part == "xin":  # not in: if {variable} xin {string}
                 pointer += 1
                 next_p = parts[pointer]
                 op1 = op1 not in next_p
-            elif part == "=": # equal to
+            elif part == "=":  # equal to
                 pointer += 1
                 next_p = parts[pointer]
                 op1 = bool(op1 == next_p)
-            elif part == "x=": # not equal to
+            elif part == "x=":  # not equal to
                 pointer += 1
                 next_p = parts[pointer]
                 op1 = bool(op1 != next_p)
@@ -116,7 +122,7 @@ class Compile:
             pointer += 1
         return op1
 
-    def parse(self, source):
+    def parse(self, source, notes=""):
         self.memory_state = "end"
         while self.curChar != "\0":
             # Comments
@@ -128,7 +134,7 @@ class Compile:
                 self.next_char(source)
                 if self.curChar == "n":
                     if self.memory_state == "start":
-                        user_input = input()
+                        user_input = input(">? ")
                         self.memory += user_input
             # Memory Clear
             if self.curChar == "m":
@@ -152,7 +158,7 @@ class Compile:
                     if data_type not in self.valid_data_types:
                         raise InvalidDataType(data_type)
                     elif data_type != "function":
-                        self.variables[name] = variable(name, data_type, str(self.memory))
+                        self.variables[name] = Variable(name, data_type, str(self.memory))
                     else:
                         # move the pointer past the space
                         self.next_char(source)
@@ -166,7 +172,7 @@ class Compile:
                             function_content += self.curChar
                             self.next_char(source)
                         function_content = function_content[:-8]
-                        self.variables[name] = variable(name, "function", function_content, parameters)
+                        self.variables[name] = Variable(name, "function", function_content, parameters)
                 else:
                     if self.memory_state == "start":
                         self.memory += str(self.variables[name].content)
@@ -273,9 +279,10 @@ class Compile:
                     if not all([x[0] == "$" for x in parameters]):
                         raise SyntaxError("Function parameters must be variables")
                     for i in range(len(parameters)):
-                        self.variables[function_object.parameters[i].name] = variable(function_object.parameters[i].name,
-                                                 function_object.parameters[i].data_type,
-                                                 self.variables[parameters[i][1:]].content)
+                        self.variables[function_object.parameters[i].name] = Variable(
+                            function_object.parameters[i].name,
+                            function_object.parameters[i].data_type,
+                            self.variables[parameters[i][1:]].content)
                     myPos = self.curPos
                     self.memory = ""
                     self.curChar = ""
@@ -328,17 +335,21 @@ class Compile:
                 loop_content = loop_content[:-8].strip("\n")
                 myPos = self.curPos
                 for looper in range(loop_from, loop_to):
-                    self.variables[loop_variable] = variable(loop_variable, "integer", looper)
+                    self.variables[loop_variable] = Variable(loop_variable, "integer", looper)
                     self.memory = ""
                     self.curChar = ""
                     self.memory_state = "end"
                     self.curPos = 0
-                    self.parse(loop_content)
+                    self.parse(loop_content, "in loop")
+                    if self.mailbox != "":
+                        if self.mailbox == "break":
+                            break
+                        self.mailbox = ""
                 self.curPos = myPos
                 self.curChar = source[self.curPos - 1]
 
             # while loop
-            elif source[self.curPos-1:self.curPos+4] == "wloop":
+            elif source[self.curPos - 1:self.curPos + 4] == "wloop":
                 # Move the pointer past the keyword and the whitespace
                 for _ in range(6):
                     self.next_char(source)
@@ -351,7 +362,7 @@ class Compile:
                 loop_end = 1
                 loop_content = ""
                 while loop_end:
-                    if source[self.curPos - 1:self.curPos+8] == "endwhloop":
+                    if source[self.curPos - 1:self.curPos + 8] == "endwhloop":
                         loop_end = loop_end - 1
                     elif source[self.curPos - 1:self.curPos + 4] == "wloop":
                         loop_end += 1
@@ -364,7 +375,11 @@ class Compile:
                     self.curChar = ""
                     self.memory_state = "end"
                     self.curPos = 0
-                    self.parse(loop_content)
+                    self.parse(loop_content, "in loop")
+                    if self.mailbox != "":
+                        if self.mailbox == "break":
+                            break
+                        self.mailbox = ""
                 self.curPos = myPos
                 self.curChar = source[self.curPos - 1]
 
@@ -377,7 +392,7 @@ class Compile:
                 if self.memory_state == "start":
                     self.memory += chr(int(binary, 2))
             # If/Else
-            elif source[self.curPos-1:self.curPos+2] == "?if":
+            elif source[self.curPos - 1:self.curPos + 2] == "?if":
                 self.next_char(source)
                 self.next_char(source)
                 test_bool = ""
@@ -388,9 +403,9 @@ class Compile:
                 if_content = ""
                 self.next_char(source)
                 while num_ifs and self.curChar != "\0":
-                    if source[self.curPos-1:self.curPos+2] == "?if":
+                    if source[self.curPos - 1:self.curPos + 2] == "?if":
                         num_ifs += 1
-                    elif source[self.curPos-1:self.curPos+5] == "end?if":
+                    elif source[self.curPos - 1:self.curPos + 5] == "end?if":
                         num_ifs -= 1
                     if_content += self.curChar
                     self.next_char(source)
@@ -412,7 +427,7 @@ class Compile:
                 # Take care of else loop
                 while self.curChar in [" ", "\n"]:
                     self.next_char(source)
-                if source[self.curPos-1:self.curPos+4] == "?else":
+                if source[self.curPos - 1:self.curPos + 4] == "?else":
                     # Move the pointer past the keyword
                     for _ in range(5):
                         self.next_char(source)
@@ -458,20 +473,66 @@ class Compile:
                     self.next_char(source)
                 self.out = open(file_name, "w").write
 
+            elif self.curChar == "+":
+                self.next_char(source)
+                self.next_char(source)
+                filename = ""
+                while self.curChar not in ["\0", "#", "\n"]:
+                    filename += self.curChar
+                    self.next_char(source)
+
+                filename = "".join(
+                    list(map(lambda part: chr(int(part.replace("v", "1").replace("c", "0"), 2)), filename.split(" "))))
+                file_content = ""
+                for test_case in [filename, filename + ".aul", self.file_path + "/" + filename,
+                                  self.file_path + "/" + filename + ".aul", self.file_path + filename,
+                                  self.file_path + filename + ".aul", self.file_path + "/built-in/" + filename + ".aul",
+                                  self.file_path + "/built-in" + filename + ".aul",
+                                  self.file_path + "/built-in" + filename, self.file_path + "/built-in/" + filename]:
+                    try:
+                        file_content = open(test_case, "r").read()
+                    except BaseException:
+                        continue
+                    break
+                myPos = self.curPos
+                self.memory = ""
+                self.curChar = ""
+                self.memory_state = "end"
+                self.curPos = 0
+                self.variables["__name__"] = Variable("__name__", "string", "__import__")
+                # == Start Run ==
+                self.parse(file_content)
+                # == End Run ==
+                self.variables["__name__"] = Variable("__name__", "string", "__main__")
+                self.curPos = myPos
+                self.curChar = source[self.curPos - 1]
+
+            # break/continue statements for loops
+            elif source[self.curPos - 1:self.curPos + 4] == "break":
+                if notes != "in loop":
+                    raise SyntaxError("Illegal break statement")
+                self.mailbox = "break"
+                return
+            elif source[self.curPos - 1:self.curPos + 5] == "nextit":
+                if notes != "in loop":
+                    raise SyntaxError("Illegal nextit (continue) statement")
+                return
+
             elif self.curChar in self.valid:
                 self.next_char(source)
             else:
                 raise UnexpectedCharacter(source, self.curPos)
 
 
-class variable:
+class Variable:
     def __init__(self, name: str, data_type: str, content: str, parameters=None):
         self.name = name
         self.data_type = data_type
         self.parameters = parameters
         self.content = content
         # get the data type parse function
-        self.data_type_function = {"string": str, "integer": int, "float": float, "function": self.do_nothing, "bool":lambda b:True if b == "True" else False}[
+        self.data_type_function = {"string": str, "integer": int, "float": float, "function": self.do_nothing,
+                                   "bool": lambda b: True if b == "True" else False}[
             self.data_type]
         try:
             self.content = self.data_type_function(str(self.content))
@@ -481,7 +542,7 @@ class variable:
         if parameters:
             for parameter in parameters.split(", "):
                 parameter = parameter.split(" ")
-                self.parameters.append(variable(parameter[0][1:], parameter[1], "0"))
+                self.parameters.append(Variable(parameter[0][1:], parameter[1], "0"))
 
     def do_nothing(self, *args):
         return ",".join(args)
