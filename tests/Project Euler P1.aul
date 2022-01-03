@@ -1,0 +1,50 @@
+# AUL equiv to the python sum(list(range(1000)).filter(lambda num: num%5 or num%3))
+
+mc
+!m
+vvcccc
+!m
+$zero integer
+
+!m
+$zero
+!m
+$count integer
+
+loop c-vvvvvcvccc as $num
+    # check 3
+    mc
+    !m
+        !math $num%vv
+    !m
+    $result float
+    ?if $result = $zero
+        mc
+        !m
+            !math $count+$num
+        !m
+        $count integer
+    end?if
+    ?else
+        # check 5
+        mc
+        !m
+            !math $num%vcv
+        !m
+        $result float
+        ?if $result = $zero
+            mc
+            !m
+                !math $count+$num
+            !m
+            $count integer
+        end?if
+    end?else
+endloop
+
+mc
+!m
+    $count
+!m
+!p
+

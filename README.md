@@ -16,7 +16,7 @@ In the future, when you want to write code, replace your code with the `CODE HER
 
 
 # How write text in AUL
-In other programming languages, you can write text to the console in a line, but here at AUL things are a lot more annoying. To actually generate text that you want, you have to type out a string of whitespace, "c" and "v". To generate a string, you have to apply the following instructions below for each character (including whitespace) and seperate each character by a space
+In other programming languages, you can write text to the console in a line, but here at AUL things are a lot more annoying. To actually generate text that you want, you have to type out a string of whitespace, "c" and "v". To generate a string, you have to apply the following instructions below for each character (including whitespace) and separate each character by a space
 
 1. Find the [ASCII Code](https://www.w3schools.com/charsets/ref_html_ascii.asp) for that character
 2. Convert that ASCII code to binary
@@ -30,7 +30,7 @@ Let's do an example. Say we wanted to write "Hi" in AUL. We first take the first
 AUL is based on a center variable (in which I will refer to as the "memory") where functions and variables can read and write to. To print our text, we will use the `!p` function. 
 (Notice that the exclamation mark "!" prefix signifies that you are calling a function) However, this print function does not work like other print functions from other languages. This print function doesn't take parameters! You might be thinking now, *wait, then how does AUL know what to print?!* Well, the AUL print function directly takes the memory, and prints it.
 
-How do we add things to the memory then? Well, you encompass your text you generated above with `!m` functions. Anything inbetween the pair of m functions will be automatically recorded to memory. Note that since memory is NOT cleared after the ending m function, it is always good practice to write `mc` which stands for "Memory Clear" before the starting m function. Therefore, our code to print "Hi" will become:
+How do we add things to the memory then? Well, you encompass your text you generated above with `!m` functions. Anything between the pair of m functions will be automatically recorded to memory. Note that since memory is NOT cleared after the ending m function, it is always good practice to write `mc` which stands for "Memory Clear" before the starting m function. Therefore, our code to print "Hi" will become:
 ```
 mc
 !m
@@ -40,7 +40,7 @@ mc
 ```
 > NOTE: Since whitespace and indents are ignored by the compiler, you can pretty much indent wherever you want to make your program look nice. Please don't indent in the middle of a function, as that will severely confuse the compiler.
 
-> Nota bene: In case you were wondering what inspired this annoyance, read the following. I was talking in a chat with some people about an April Fools keyboard which only had three keys, a stackoverflow button, a c button, and a v button. "You don't need an actual keybaord because you can just copy paste from stackoverflow" Someone pointed out that you cound't search anything on stackoverflow, and someone else said, "use c and v to make binary words" That was the birth of the most annoying feature on AUL.
+> Nota bene: In case you were wondering what inspired this annoyance, read the following. I was talking in a chat with some people about an April Fools keyboard which only had three keys, a stackoverflow button, a c button, and a v button. "You don't need an actual keyboard because you can just copy paste from stackoverflow" Someone pointed out that you couldn't search anything on stackoverflow, and someone else said, "use c and v to make binary words" That was the birth of the most annoying feature on AUL.
 
 ## Exercise
 ```
@@ -188,7 +188,7 @@ There are statements that can converted into a boolean (true or false) when run 
 
 `No` - Literally AUL for "False"
 
-> NOTE: Note that each operation and operand must be seperated with a space.
+> NOTE: Note that each operation and operand must be separated with a space.
 
 ## The Boolean Function
 In short, the function `!b` takes a boolean string as a parameter and outputs either True or False (as a string) to the memory. You can convert the string generated into a real python boolean by declaring a variable with the "bool" data type. (see "Variables and data types") Here are some examples
@@ -212,7 +212,7 @@ $output
 
 # Functions
 ## Declaring a function
-The syntax for declaring a function is similar to the syntax of declaring a variable. You first start by declaring a variable with the data type `function`, then declare parameters. To declare parameters, you declare another variable. If multiple parameters, seperate the parameters with a comma and a space. After a newline, you will write the code the function will execute. When you are done with that, type `endfunc`. 
+The syntax for declaring a function is similar to the syntax of declaring a variable. You first start by declaring a variable with the data type `function`, then declare parameters. To declare parameters, you declare another variable. If multiple parameters, separate the parameters with a comma and a space. After a newline, you will write the code the function will execute. When you are done with that, type `endfunc`. 
 
 ## Syntax for declaring a function:
 ```
@@ -223,7 +223,7 @@ AUL code here
 endfunc
 ```
 ## Calling a function
-To call a function type an exclamation mark "!" and then the function name. Then type the arguments, seperated with a sole space. 
+To call a function type an exclamation mark "!" and then the function name. Then type the arguments, separated with a sole space. 
 
 > NOTE: Arguments MUST be variables.
 
@@ -238,7 +238,96 @@ Write a function "add" which takes in two integer parameters `a` and `b` and pri
 The solution can be found under tests/add_two_numbers.aul in the GitHub repo/
 
 # If/else
+In a programming language, if/else is a necessity. This is why, I added if/else to AUL. The syntax of an AUL if/else is the below.
+```
+?if bool_string
+    if_content
+end?if
+```
+Let's analyze this. "bool string" is a statement capable of outputting a boolean (True/False) (see "Booleans"). If that output is `True`, then AUL will execute if_content, which is everything from the end of the bool_string, to end?if. If the output is `False`, then AUL just skips to the end of `end?if`.
+
+After an if statement, you have the choice of adding adding a `else` statement, which runs if the if statement is False. The syntax of a else statement is
+```
+?else
+    else_statement
+end?else
+```
+The only thing you need to type in an else statement that differs from our example above is that you need to replace `else_statement` with your else statement.
+
 
 # For loop
+The syntax for declaring a for loop in AUL is
+```
+loop start-end as $var
+    loop_content
+endloop
+```
+Let's analyze this. The word `start` is a placeholder for the value the loop starts iterating on. Start can be a variable or a binary number, as long as the value is an integer. The placeholder `end` is the value the loop stops iterating on. (NOT INCLUSIVE) Like start, end can be a variable or a binary number. `$var` is the variable that stores the current iteration. `loop_content` is well, the loop content.
+
+Here is an example of a for loop that prints all the numbers between variable `$zero` and 5 (NOT INCLUSIVE).
+```
+mc
+!m
+    # ascii for zero
+    vvcccc
+!m
+$zero integer
+
+#vcv is 5
+loop $zero-vcv as $number
+    mc
+    !m
+        $number
+    !m
+    !p
+endloop
+
+# Expected output: 
+# 0
+# 1
+# 2
+# 3
+# 4
+```
+
 
 # While loop
+An AUL while loop operates very similarly to an AUL for loop. This is it's syntax.
+```
+wloop bool_string
+    loop_content
+endwhloop
+```
+Let's do some analyzing. Bool_string is a string capable of creating a boolean (true/false). The while loop will run the loop_content, which spans from the end of the bool string, to the start of endwhloop, until the bool_string returns False.
+
+> Notice that `endwhloop` is spelled differently from the expected `endwloop`.
+
+# Break and Continue
+When you are in a loop (for loop, while loop), you have the choice to type `break` or `nextit` (continue) whenever you want. Let's see what those two commands do.
+
+`break` - stops the entire loop
+
+`nextit` - stops the current iteration and goes onto the next iteration
+
+
+# Out ">"
+Instead of `!p` printing to the console, you have the choice of `!p` writing to a file. If you type `>`, a space, and then write the file name/file path in AUL text (see "How write text in AUL") all FUTURE `!p` functions will be written to that file.
+
+## Example
+Write all future `!p` functions to the file `out.out`
+```
+> vvcvvvv vvvcvcv vvvcvcc vcvvvc vvcvvvv vvvcvcv vvvcvcc
+```
+
+# Import
+To "import" AUL code from another file, or compile the content of another file while compiling the content of the current file, type a plus sign `+`, and a space, and then the file name in AUL text (see "How write text in AUL") (without the `.aul` extension). For example, if I wanted to import `import_me.aul` which is in the same directory as the current file, I would type `+`, a space, and then "import_me" in AUL text: 
+```
++ vvcvccv vvcvvcv vvvcccc vvcvvvv vvvccvc vvvcvcc vcvvvvv vvcvvcv vvccvcv
+```
+
+> Note: If the file is not in the same directory, then you can add the file path as well. 
+
+# Concluding note
+Thank you for learning AUL. I really appreciate it when someone actually uses the work I have spent days typing away at. This is why, I thank you, for learning AUL. Now, go and code something in AUL. Trust me, it will be fun, more fun than coding in python or any other programming language.
+
+\- Andrew Chen, creator of AUL
