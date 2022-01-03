@@ -1,0 +1,22 @@
+$add function $a integer, $b integer
+!m
+!math $a+$b
+!m
+endfunc
+
+# ask user for #1
+mc
+!m
+in
+!m
+$num1 integer
+
+# ask user for #2
+mc
+!m
+in
+!m
+$num2 integer
+
+!add $num1 $num2
+!p

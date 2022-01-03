@@ -1,6 +1,6 @@
 # The official Annoyingly Uncodeable Language (AUL) Compiler
 # By Andrew Chen (actiniumn404 on GitHub)
-# Licensed under the ___ License
+# Licensed under the GNU GPLv3 License
 
 import string
 from errors import *
@@ -15,7 +15,7 @@ class Compile:
         self.location = None
         self.clipboard = None
         self.valid = list(string.whitespace) + ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"] + list(
-            string.ascii_lowercase) + ["\0", "", "\n", "!", "#", "*", "+", "/", "-", "$", "?", "<", ">", "=", "|"]
+            string.ascii_lowercase) + ["\0", "", "\n", "!", "#", "*", "+", "/", "-", "$", "?", "<", ">", "=", "|", ]
         self.memory = ""
         self.memory_state = "end"
         self.out = print
@@ -125,6 +125,9 @@ class Compile:
     def parse(self, source, notes=""):
         self.memory_state = "end"
         while self.curChar != "\0":
+            # continue for loops
+            if self.mailbox == "continue" and notes == "in loop":
+                return
             # Comments
             if self.curChar == "#":
                 while self.curChar != "\n" and self.curChar != "\0":
@@ -189,11 +192,11 @@ class Compile:
                     if not self.clipboard:
                         raise EmptyClipboard(source, self.curPos)
                     else:
-                        self.memory = self.clipboard
+                        self.memory += self.clipboard
 
                 # Print
                 elif self.curChar == "p":
-                    if self.memory and self.memory_state == "end":
+                    if self.memory:
                         self.out(self.memory)
 
                 # Mathematical Computations
@@ -289,7 +292,7 @@ class Compile:
                     self.memory_state = "end"
                     self.curPos = 0
                     # == Run Function Code ==
-                    self.parse(function_object.content)
+                    self.parse(function_object.content, "in function")
                     # == End Run ==
                     self.curPos = myPos
                     self.curChar = source[self.curPos - 1]
@@ -395,6 +398,9 @@ class Compile:
             elif source[self.curPos - 1:self.curPos + 2] == "?if":
                 self.next_char(source)
                 self.next_char(source)
+                self.next_char(source)
+                self.next_char(source)
+
                 test_bool = ""
                 while self.curChar not in ["\n", "\0"]:
                     test_bool += self.curChar
@@ -418,7 +424,7 @@ class Compile:
                     self.memory_state = "end"
                     self.curPos = 0
                     # == Start Run ==
-                    self.parse(if_content)
+                    self.parse(if_content, notes)
                     # == End Run ==
                     self.curPos = myPos
                     self.curChar = source[self.curPos - 1]
@@ -451,7 +457,7 @@ class Compile:
                         self.memory_state = "end"
                         self.curPos = 0
                         # == Start Run ==
-                        self.parse(else_content)
+                        self.parse(else_content, notes)
                         # == End Run ==
                         self.curPos = myPos
                         self.curChar = source[self.curPos - 1]
@@ -516,6 +522,7 @@ class Compile:
             elif source[self.curPos - 1:self.curPos + 5] == "nextit":
                 if notes != "in loop":
                     raise SyntaxError("Illegal nextit (continue) statement")
+                self.mailbox = "continue"
                 return
 
             elif self.curChar in self.valid:

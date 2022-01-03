@@ -1,3 +1,4 @@
+# The Errors
 class EmptyClipboard(BaseException):
     def __init__(self, source: str, err_index: int, message: str="Cannot paste from empty clipboard"):
         self.message = message
