@@ -20,7 +20,7 @@ class Compile:
         self.memory_state = "end"
         self.out = print
         self.variables = {"__name__": Variable("__name__", "string", "__main__")}
-        self.valid_data_types = ["integer", "string", "float", "function", "bool"]
+        self.valid_data_types = ["integer", "string", "float", "function", "bool", "array"]
         self.mailbox = ""
 
         # set up path for importing
@@ -120,14 +120,15 @@ class Compile:
                 op1 = bool(op1 <= next_p)
 
             pointer += 1
-        return op1
+        return bool(op1)
 
-    def parse(self, source, notes=""):
+    def parse(self, source, notes="", variable_name_prefix=""):
         self.memory_state = "end"
         while self.curChar != "\0":
             # continue for loops
             if self.mailbox == "continue" and notes == "in loop":
                 return
+
             # Comments
             if self.curChar == "#":
                 while self.curChar != "\n" and self.curChar != "\0":
@@ -152,6 +153,7 @@ class Compile:
                 while self.curChar not in [" ", "\n", "\0", "#"]:
                     name += self.curChar
                     self.next_char(source)
+                name = variable_name_prefix+name
                 self.next_char(source)
                 if (source[self.curPos - 1:min(self.curPos + 2, len(source) - 1)]).isalpha():
                     data_type = ""
@@ -174,6 +176,8 @@ class Compile:
                         while source[self.curPos - 8:self.curPos - 1] != "endfunc":
                             function_content += self.curChar
                             self.next_char(source)
+                            if self.curChar == "\0":
+                                raise EndOfProgramError("Expected \"endfunc\" before the end of program")
                         function_content = function_content[:-8]
                         self.variables[name] = Variable(name, "function", function_content, parameters)
                 else:
@@ -183,8 +187,21 @@ class Compile:
             # "Commands"
             if self.curChar == "!":
                 self.next_char(source)
+
+                # python sys
+                if source[self.curPos - 1:self.curPos + 2] == "sys":
+                    for _ in range(4):
+                        self.next_char(source)
+                    sys_content = ""
+                    while self.curChar not in ["\0", "\n", "#"]:
+                        sys_content += self.curChar
+                        self.next_char(source)
+                    sys_content = self.variables[sys_content[1:]].content
+                    if self.memory_state == "start":
+                        exec(sys_content)
+
                 # Copy
-                if self.curChar == "c":
+                elif self.curChar == "c":
                     self.clipboard = self.memory
 
                 # Paste
@@ -292,7 +309,7 @@ class Compile:
                     self.memory_state = "end"
                     self.curPos = 0
                     # == Run Function Code ==
-                    self.parse(function_object.content, "in function")
+                    self.parse(function_object.content, "in function", variable_name_prefix)
                     # == End Run ==
                     self.curPos = myPos
                     self.curChar = source[self.curPos - 1]
@@ -343,7 +360,7 @@ class Compile:
                     self.curChar = ""
                     self.memory_state = "end"
                     self.curPos = 0
-                    self.parse(loop_content, "in loop")
+                    self.parse(loop_content, "in loop", variable_name_prefix)
                     if self.mailbox != "":
                         if self.mailbox == "break":
                             break
@@ -371,6 +388,8 @@ class Compile:
                         loop_end += 1
                     loop_content += self.curChar
                     self.next_char(source)
+                    if self.curChar == "\0":
+                        raise EndOfProgramError("Expected \"endwhloop\" before the end of program")
                 loop_content = loop_content[:-1].strip(" \n")
                 myPos = self.curPos
                 while self.booleen(test_bool):
@@ -378,7 +397,7 @@ class Compile:
                     self.curChar = ""
                     self.memory_state = "end"
                     self.curPos = 0
-                    self.parse(loop_content, "in loop")
+                    self.parse(loop_content, "in loop", variable_name_prefix)
                     if self.mailbox != "":
                         if self.mailbox == "break":
                             break
@@ -393,7 +412,7 @@ class Compile:
                     binary += {"c": "0", "v": "1"}.get(self.curChar)
                     self.next_char(source)
                 if self.memory_state == "start":
-                    self.memory += chr(int(binary, 2))
+                    self.memory += chr(int(binary, 2)).replace(chr(0), "")
             # If/Else
             elif source[self.curPos - 1:self.curPos + 2] == "?if":
                 self.next_char(source)
@@ -415,6 +434,8 @@ class Compile:
                         num_ifs -= 1
                     if_content += self.curChar
                     self.next_char(source)
+                    if self.curChar == "\0":
+                        raise EndOfProgramError("Expected \"end?if\" before the end of program")
                 if_content = if_content[:-1].strip("\n ")
                 test_bool = self.booleen(test_bool)
                 if test_bool:
@@ -424,7 +445,7 @@ class Compile:
                     self.memory_state = "end"
                     self.curPos = 0
                     # == Start Run ==
-                    self.parse(if_content, notes)
+                    self.parse(if_content, notes, variable_name_prefix)
                     # == End Run ==
                     self.curPos = myPos
                     self.curChar = source[self.curPos - 1]
@@ -447,6 +468,8 @@ class Compile:
                             num_else -= 1
                         else_content += self.curChar
                         self.next_char(source)
+                        if self.curChar == "\0":
+                            raise EndOfProgramError("Expected \"end?else\" before the end of program")
                     else_content = else_content[:-1].strip(" \n")
                     for _ in range(8):
                         self.next_char(source)
@@ -457,7 +480,7 @@ class Compile:
                         self.memory_state = "end"
                         self.curPos = 0
                         # == Start Run ==
-                        self.parse(else_content, notes)
+                        self.parse(else_content, notes, variable_name_prefix)
                         # == End Run ==
                         self.curPos = myPos
                         self.curChar = source[self.curPos - 1]
@@ -507,7 +530,7 @@ class Compile:
                 self.curPos = 0
                 self.variables["__name__"] = Variable("__name__", "string", "__import__")
                 # == Start Run ==
-                self.parse(file_content)
+                self.parse(file_content, filename+".")
                 # == End Run ==
                 self.variables["__name__"] = Variable("__name__", "string", "__main__")
                 self.curPos = myPos
@@ -533,18 +556,20 @@ class Compile:
 
 class Variable:
     def __init__(self, name: str, data_type: str, content: str, parameters=None):
+        if data_type not in ["string", "integer", "float", "function", "bool", "array"]:
+            raise InvalidDataType(data_type)
         self.name = name
         self.data_type = data_type
         self.parameters = parameters
         self.content = content
         # get the data type parse function
         self.data_type_function = {"string": str, "integer": int, "float": float, "function": self.do_nothing,
-                                   "bool": lambda b: True if b == "True" else False}[
+                                   "bool": lambda b: True if b == "True" else False, "array":list}[
             self.data_type]
         try:
             self.content = self.data_type_function(str(self.content))
         except BaseException:
-            raise SegmentationFault(f"The value of variable \"{self.name}\" is not a valid \"{self.data_type}\" object")
+            raise SegmentationFault(f"The value of variable \"{self.name}\" is not a valid \"{self.data_type}\" object") from None
         self.parameters = []
         if parameters:
             for parameter in parameters.split(", "):
